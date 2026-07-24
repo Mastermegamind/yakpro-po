@@ -69,10 +69,14 @@ class MyNodeVisitor extends PhpParser\NodeVisitorAbstract       // all parsing a
 
     private function scramble_name(&$scrambler, &$node)         // only last part
     {
-        if ($node instanceof PhpParser\Node\Name || $node->name instanceof PhpParser\Node\Name)
+        // Nodes like NullableType/UnionType/Identifier don't declare a
+        // ->name property at all, so probe with isset() first — accessing
+        // an undeclared typed property directly raises a PHP warning.
+        $has_name = isset($node->name) && $node->name instanceof PhpParser\Node\Name;
+        if ($node instanceof PhpParser\Node\Name || $has_name)
         {
             if ($node       instanceof PhpParser\Node\Name) $tmp_node = $node;
-            if ($node->name instanceof PhpParser\Node\Name) $tmp_node = $node->name;
+            if ($has_name)                                  $tmp_node = $node->name;
 
             $parts = explode('\\',$tmp_node->name);
             $name  = $parts[count($parts)-1];
@@ -91,10 +95,11 @@ class MyNodeVisitor extends PhpParser\NodeVisitorAbstract       // all parsing a
     }
     private function scramble_names(&$scrambler, &$node)        // all except last part
     {
-        if ($node instanceof PhpParser\Node\Name || $node->name instanceof PhpParser\Node\Name)
+        $has_name = isset($node->name) && $node->name instanceof PhpParser\Node\Name;
+        if ($node instanceof PhpParser\Node\Name || $has_name)
         {
             if ($node       instanceof PhpParser\Node\Name) $tmp_node = $node;
-            if ($node->name instanceof PhpParser\Node\Name) $tmp_node = $node->name;
+            if ($has_name)                                  $tmp_node = $node->name;
 
             $node_modified = false;
             $parts = explode('\\',$tmp_node->name);
@@ -121,10 +126,11 @@ class MyNodeVisitor extends PhpParser\NodeVisitorAbstract       // all parsing a
     }
     private function scramble_all_names(&$scrambler, &$node)    // all pparts
     {
-        if ($node instanceof PhpParser\Node\Name || $node->name instanceof PhpParser\Node\Name)
+        $has_name = isset($node->name) && $node->name instanceof PhpParser\Node\Name;
+        if ($node instanceof PhpParser\Node\Name || $has_name)
         {
             if ($node       instanceof PhpParser\Node\Name) $tmp_node = $node;
-            if ($node->name instanceof PhpParser\Node\Name) $tmp_node = $node->name;
+            if ($has_name)                                  $tmp_node = $node->name;
             
             $node_modified = false;
             $parts = explode('\\',$tmp_node->name);
