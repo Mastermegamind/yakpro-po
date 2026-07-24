@@ -206,10 +206,45 @@ class MyNodeVisitor extends PhpParser\NodeVisitorAbstract       // all parsing a
             }
         }
         
+        // Constructor property promotion: function __construct(private Foo $bar) {}
+        // makes $bar simultaneously the parameter AND the property $this->bar.
+        // PHP-Parser represents this only as a Param with flags set — there is
+        // no separate property-declaration node. If we scrambled this Variable
+        // via the 'variable' scrambler (like an ordinary param) while every
+        // $this->bar access elsewhere gets scrambled via the independent
+        // 'property' scrambler, the two would diverge and the class would
+        // reference a property that doesn't exist. So: route it through the
+        // SAME scrambler as properties, gated on obfuscate_property_name
+        // (not obfuscate_variable_name), and skip the generic variable
+        // handling below for this node.
+        $promoted_property_handled = false;
+        if ($node instanceof PhpParser\Node\Expr\Variable)
+        {
+            $parent = $node->getAttribute('parent');
+            if ( ($parent instanceof PhpParser\Node\Param) && $parent->isPromoted() && ($parent->var === $node) )
+            {
+                $promoted_property_handled = true;
+                if ($conf->obfuscate_property_name)
+                {
+                    $scrambler = $t_scrambler['property'];
+                    $name = $node->name;
+                    if ( is_string($name) && (strlen($name) !== 0) )
+                    {
+                        $r = $scrambler->scramble($name);
+                        if ($r!==$name)
+                        {
+                            $node->name = $r;
+                            $node_modified = true;
+                        }
+                    }
+                }
+            }
+        }
+
         if ($conf->obfuscate_variable_name)
         {
             $scrambler = $t_scrambler['variable'];
-            if ($node instanceof PhpParser\Node\Expr\Variable)
+            if ($node instanceof PhpParser\Node\Expr\Variable && !$promoted_property_handled)
             {
                 $name = $node->name;
                 if ( is_string($name) && (strlen($name) !== 0) )
