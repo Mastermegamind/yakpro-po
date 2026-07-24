@@ -493,6 +493,37 @@ class MyNodeVisitor extends PhpParser\NodeVisitorAbstract       // all parsing a
                     }
                 }
             }
+            // [SomeClass::class, 'methodName'] callable-array — extremely
+            // common (routing tables, event listener maps, middleware
+            // registration...). The method scrambler is a single global
+            // case-insensitive map shared by every class, so it's safe to
+            // scramble this string with no class-specific context: any
+            // method named 'methodName' anywhere already maps to the same
+            // scrambled name. Without this, obfuscating method names
+            // silently breaks every framework that resolves callables this
+            // way, since ClassMethod/MethodCall/StaticCall never see this
+            // node — it's just a 2-element array literal to the parser.
+            if ($node instanceof PhpParser\Node\Expr\Array_ && count($node->items) === 2)
+            {
+                $first  = $node->items[0]->value ?? null;
+                $second = $node->items[1]->value ?? null;
+                $first_is_class_const = ($first instanceof PhpParser\Node\Expr\ClassConstFetch)
+                                      && ($first->name instanceof PhpParser\Node\Identifier)
+                                      && (strtolower($first->name->toString()) === 'class');
+                if ($first_is_class_const && ($second instanceof PhpParser\Node\Scalar\String_))
+                {
+                    $name = $second->value;
+                    if ( is_string($name) && (strlen($name) !== 0) )
+                    {
+                        $r = $scrambler->scramble($name);
+                        if ($r!==$name)
+                        {
+                            $second->value = $r;
+                            $node_modified = true;
+                        }
+                    }
+                }
+            }
         }
 
         if ($conf->obfuscate_constant_name)
